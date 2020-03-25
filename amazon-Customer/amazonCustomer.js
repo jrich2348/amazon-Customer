@@ -1,100 +1,103 @@
 var mysql = require("mysql");
 var inquirer = require("inquirer");
-require("console.table");
 
 var connection = mysql.createConnection({
-  host: "localhost",
-  port: 3306,
-  user: "root",
-  password: "",
-  database: "amazon"
+    host: "localhost",
+    // Your port; if not 3306
+    port: 3306,
+    // Your username
+    user: "root",
+    // Your password
+    password: "root",
+    database: "bamazon_DB"
 });
 
+//connect to DB and call customer function
 connection.connect(function (err) {
-  if (err) {
-    console.error("error connecting: " + err.stack);
-  }
-  loadProducts();
+    if (err) throw err;
+    customer();
 });
 
-function loadProducts() {
-  connection.query("SELECT * FROM products", function (err, res) {
-    if (err) throw err;
-    console.table(res);
-    promptCustomerForItem(res);
-  });
+//function displays the prompt menu for the customer options
+function customer() {
+    inquirer
+        .prompt({
+            name: "action",
+            type: "list",
+            message: "What would you like to do?",
+            choices: [
+                "View Products",
+                "Exit"
+            ]
+        }).then(function (answer) {
+            switch (answer.action) {
+                case "View Products":
+                    purchase();
+                    break;
+
+                case "Exit":
+                    connection.end();
+                    break;
+            }
+        });
 }
 
-function promptCustomerForItem(inventory) {
-  inquirer
-    .prompt([{
-      type: "input",
-      name: "choice",
-      message: "What is the ID of the item you would you like to purchase? [Quit with Q]",
-      validate: function (val) {
-        return !isNaN(val) || val.toLowerCase() === "q";
-      }
-    }])
-    .then(function (val) {
-      checkIfShouldExit(val.choice);
-      var choiceId = parseInt(val.choice);
-      var product = checkInventory(choiceId, inventory);
+//the purchase function displays all available items. user then enters the item # and number of items
+//they would like to purchase. If the inventory is less than the amount enter, the order will not be processed
+function purchase() {
+    var query = "SELECT item_id, product_name, price FROM products";
+    connection.query(query, function (err, res) {
+        if (err) throw err;
+        for (var i = 0; i < res.length; i++) {
+            console.log("Item #: " + res[i].item_id + " || Item: " + res[i].product_name + " || Price: $" + res[i].price.toFixed(2));
+        }
 
-      if (product) {
-        promptCustomerForQuantity(product);
-      } else {
-        console.log("\nThat item is not in the inventory.");
-        loadProducts();
-      }
-    });
-}
+        inquirer
+            .prompt([{
+                name: "item",
+                type: "input",
+                message: "Which item would you like to purchase?"
+            }, {
+                name: "quantity",
+                type: "input",
+                message: "How many would you like to purchase?"
+            }])
+            .then(function (answer) {          
 
-function promptCustomerForQuantity(product) {
-  inquirer
-    .prompt([{
-      type: "input",
-      name: "quantity",
-      message: "How many would you like? [Quit with Q]",
-      validate: function (val) {
-        return val > 0 || val.toLowerCase() === "q";
-      }
-    }])
-    .then(function (val) {
-      checkIfShouldExit(val.quantity);
-      var quantity = parseInt(val.quantity);
+                connection.query("SELECT * from products WHERE ?", {
+                    item_id: answer.item
+                }, function (err, results) {
+                    if (err) throw err;
+                   
+                    if (results[0].stock_quantity < answer.quantity) {
+                        console.log("Insuffient Quantity. Order cannot be fulfilled");
+                    } else {
+                        var total = parseInt(results[0].price) * answer.quantity;
+                        //display to the user the subtotal
+                        console.log("Your order is being processed. The total amount is $" + total.toFixed(2));
+                        var newStock = parseInt(results[0].stock_quantity) - answer.quantity;
+                        var productTotal = parseInt(results[0].product_sales) + total;
+                        //update the inventory and product sales once the order is placed
+                        connection.query(
+                            "UPDATE products SET ? WHERE ?",
+                            [{
+                                    stock_quantity: newStock,
+                                    product_sales: productTotal
+                                },
+                                {
+                                    item_id: answer.item
+                                }
+                            ],
+                            //call menu function once order is complete
+                            function (error) {
+                                if (error) throw err;
+                                customer();
+                            }
+                        );
+                    }
 
-      if (quantity > product.stock_quantity) {
-        console.log("\nInsufficient quantity!");
-        loadProducts();
-      } else {
-        makePurchase(product, quantity);
-      }
-    });
-}
+                })
 
-function makePurchase(product, quantity) {
-  connection.query(
-    "UPDATE products SET stock_quantity = stock_quantity - ?, product_sales = product_sales + ? WHERE item_id = ?",
-    [quantity, product.price * quantity, product.item_id],
-    function (err, res) {
-      console.log("\nSuccessfully purchased " + quantity + " " + product.product_name + "'s!");
-      loadProducts();
-    }
-  );
-}
-
-function checkInventory(choiceId, inventory) {
-  for (var i = 0; i < inventory.length; i++) {
-    if (inventory[i].item_id === choiceId) {
-      return inventory[i];
-    }
-  }
-  return null;
-}
-
-function checkIfShouldExit(choice) {
-  if (choice.toLowerCase() === "q") {
-    console.log("Goodbye!");
-    process.exit(0);
-  }
+            });
+    })
 }
