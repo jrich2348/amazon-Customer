@@ -1,17 +1,26 @@
 {
-  "name": "amazon-Customer",
+  "name": "bamazon-master",
   "version": "1.0.0",
-  "description": "",
-  "main": "amazonCustomer.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "description": "bamazon-main",
+  "main": "bamazonCustomer.js",
   "dependencies": {
-    "console.table": "^0.10.0",
-    "inquirer": "^6.0.0",
-    "mysql": "^2.15.0"
+    "inquirer": "^7.1.0",
+    "mysql": "^2.18.1"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "(echo\\\"Error: no specified\\ && exit 1)"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jrich2348/amazon-Customer/tree/master/amazon-Customer"
+  },
+  "author": "Jeffery Richards",
+  "license": "ISC"
+  "bugs": {
+    "url": "https://github.com/jrich2348/amazon-Customer/issues"
+  },
+  "homepage": "https://github.com/jrich2348/amazon-Customer#readme"
+  
   }
-}
+
